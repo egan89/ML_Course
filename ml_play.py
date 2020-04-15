@@ -47,7 +47,7 @@ def ml_loop():
             print("實際落下位置：", now_pos[0])
             ball_served = False
             now_pos = (97.5, 395)
-            speed = 7
+            speed = -7
             cacu_speed = speed
             ini_y = 0.0
             final_x = 0.0
@@ -86,7 +86,7 @@ def ml_loop():
                     print(speed)
                     ini_y = now_pos[1]
                     final_x = now_pos[0]
-                    fall_time = (400.0-ini_y)/abs(cacu_speed)
+                    fall_time = (400.0-ini_y)/7   #abs(cacu_speed)
                     print("ini_y = ", ini_y)
                     print("now_pos[0] = ", now_pos[0])
                     print("fall_time = ", fall_time)
