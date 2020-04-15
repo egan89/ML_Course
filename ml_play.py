@@ -46,22 +46,7 @@ def ml_loop():
         #      the scene and wait for ml process doing resetting job.
         if scene_info.status == GameStatus.GAME_OVER or \
             scene_info.status == GameStatus.GAME_PASS:
-            # Reset 
-            #print("實際落下位置：", now_pos[0])
-            ball_served = False
-            now_pos = (97.5, 395)
-            pre_pos = (0, 0) 
-            speed = -7
-            pre_speed = speed
-            cacu_speed = speed
-            ini_y = 0.0
-            final_x = 0.0
-            fall_time = 0.0
-            prelen_normal = 0
-            prelen_hard = 0
-            plat_direct = 0
-            caculate_desti = False
-
+           
             # 3.2.1. Inform the game process that ml process is ready
             comm.ml_ready()
             continue
