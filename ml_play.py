@@ -149,13 +149,13 @@ def ml_loop():
                         elif plat[0]+20>final_x:
                             comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
                             plat_direct = 0
-                    """else: #球向左
+                    else: #球向左
                         if plat[0]+20<final_x:
                             comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
                             plat_direct = 1
                         elif plat[0]+20>final_x:
                             comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
-                            plat_direct = 0     """   
+                            plat_direct = 0     
 
                 pre_speed = speed
 
