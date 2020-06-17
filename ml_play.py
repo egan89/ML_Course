@@ -1,160 +1,131 @@
-"""
-The template of the main script of the machine learning process
-"""
+class MLPlay:
+    def __init__(self, player):
+        self.player = player
+        if self.player == "player1":
+            self.player_no = 0
+        elif self.player == "player2":
+            self.player_no = 1
+        elif self.player == "player3":
+            self.player_no = 2
+        elif self.player == "player4":
+            self.player_no = 3
+        self.car_vel = 0                            # speed initial
+        self.car_pos = (0,0)                        # pos initial
+        self.car_lane = self.car_pos[0] // 70       # lanes 0 ~ 8
+        self.lanes = [35, 105, 175, 245, 315, 385, 455, 525, 595]  # lanes center
+        pass
 
-import games.arkanoid.communication as comm
-from games.arkanoid.communication import ( \
-    SceneInfo, GameStatus, PlatformAction
-)
+    def update(self, scene_info):
+        """
+        9 grid relative position
+        |    |    |    |
+        |  1 |  2 |  3 |
+        |    |  5 |    |
+        |  4 |  c |  6 |
+        |    |    |    |
+        |  7 |  8 |  9 |
+        |    |    |    |       
+        """
+        def check_grid():
+            grid = set()
+            speed_ahead = 100
+            if self.car_pos[0] <= 65: # left bound
+                grid.add(1)
+                grid.add(4)
+                grid.add(7)
+            elif self.car_pos[0] >= 565: # right bound
+                grid.add(3)
+                grid.add(6)
+                grid.add(9)
 
-def ml_loop():
-    """
-    The main loop of the machine learning process
-
-    This loop is run in a separate process, and communicates with the game process.
-
-    Note that the game process won't wait for the ml process to generate the
-    GameInstruction. It is possible that the frame of the GameInstruction
-    is behind of the current frame in the game process. Try to decrease the fps
-    to avoid this situation.
-    """
-
-    # === Here is the execution order of the loop === #
-    # 1. Put the initialization code here.
-    ball_served = False
-    now_pos = (97.5, 395)
-    pre_pos = (0, 0) 
-    speed = -7
-    pre_speed = speed
-    cacu_speed = speed
-    ini_y = 0.0
-    final_x = 0.0
-    fall_time = 0.0
-    prelen_normal = 0
-    prelen_hard = 0
-    plat_direct = 0 # 0:left, 1:right
-    caculate_desti = False
-
-    # 2. Inform the game process that ml process is ready before start the loop.
-    comm.ml_ready()
-
-    # 3. Start an endless loop.
-    while True:
-        # 3.1. Receive the scene information sent from the game process.
-        scene_info = comm.get_scene_info()
-        # 3.2. If the game is over or passed, the game process will reset
-        #      the scene and wait for ml process doing resetting job.
-        if scene_info.status == GameStatus.GAME_OVER or \
-            scene_info.status == GameStatus.GAME_PASS:
-           
-            # 3.2.1. Inform the game process that ml process is ready
-            comm.ml_ready()
-            continue
-        
-        pre_pos = now_pos
-        # 3.3. Put the code here to handle the scene information
-        now_pos = scene_info.ball
-        plat = scene_info.platform
-        len_normal = len(scene_info.bricks) 
-        len_hard = len(scene_info.hard_bricks)
-
-        # 3.4. Send the instruction for this frame to the game process
-        if not ball_served:
-                comm.send_instruction(scene_info.frame, PlatformAction.SERVE_TO_LEFT)
-                ball_served = True
-                caculate_desti = True
-        else:
-            speed = now_pos[0]-pre_pos[0]
+            for car in scene_info["cars_info"]:
+                if car["id"] != self.player_no:
+                    x = self.car_pos[0] - car["pos"][0] # x relative position
+                    y = self.car_pos[1] - car["pos"][1] # y relative position
+                    if x <= 40 and x >= -40 :      
+                        if y > 0 and y < 300:
+                            grid.add(2)
+                            if y < 200:
+                                speed_ahead = car["velocity"]
+                                grid.add(5) 
+                        elif y < 0 and y > -200:
+                            grid.add(8)
+                    if x > -100 and x < -40 :
+                        if y > 80 and y < 250:
+                            grid.add(3)
+                        elif y < -80 and y > -200:
+                            grid.add(9)
+                        elif y < 80 and y > -80:
+                            grid.add(6)
+                    if x < 100 and x > 40:
+                        if y > 80 and y < 250:
+                            grid.add(1)
+                        elif y < -80 and y > -200:
+                            grid.add(7)
+                        elif y < 80 and y > -80:
+                            grid.add(4)
+            return move(grid= grid, speed_ahead = speed_ahead)
             
-            # adjust "speed"
-            #if abs(speed)!=7 and abs(speed)!=10:
-            #    speed = pre_speed*(-1)
-        
-            if now_pos[1]>pre_pos[1]: #球下降
-                # When the contact happen
-                if now_pos[1]>=(400-5) and (now_pos[0]+5)<=plat[0] and now_pos[0]>=plat[0]: # the diameter of the ball is 5
-                    if speed<0: # ball:move left
-                        if plat_direct<1: # move left
-                            speed = -10
-                        else: # move right
-                            speed = 7
-                    else: # ball:move right
-                        if plat_direct<1: # move left
-                            speed = -7
-                        else: # move right
-                            speed = 10
-                
-                if now_pos[0]<=0 or now_pos[0]>=200-5:
-                    speed = pre_speed*(-1)
-                    caculate_desti = True
+        def move(grid, speed_ahead): 
+            # if self.player_no == 0:
+            #     print(grid)
+            if len(grid) == 0:
+                return ["SPEED"]
+            else:
+                if (2 not in grid): # Check forward 
+                    # Back to lane center
+                    if self.car_pos[0] > self.lanes[self.car_lane]:
+                        return ["SPEED", "MOVE_LEFT"]
+                    elif self.car_pos[0 ] < self.lanes[self.car_lane]:
+                        return ["SPEED", "MOVE_RIGHT"]
+                    else :return ["SPEED"]
+                else:
+                    if (5 in grid): # NEED to BRAKE
+                        if (4 not in grid) and (7 not in grid): # turn left 
+                            if self.car_vel < speed_ahead:
+                                return ["SPEED", "MOVE_LEFT"]
+                            else:
+                                return ["BRAKE", "MOVE_LEFT"]
+                        elif (6 not in grid) and (9 not in grid): # turn right
+                            if self.car_vel < speed_ahead:
+                                return ["SPEED", "MOVE_RIGHT"]
+                            else:
+                                return ["BRAKE", "MOVE_RIGHT"]
+                        else : 
+                            if self.car_vel < speed_ahead:  # BRAKE
+                                return ["SPEED"]
+                            else:
+                                return ["BRAKE"]
+                    if (self.car_pos[0] < 60 ):
+                        return ["SPEED", "MOVE_RIGHT"]
+                    if (1 not in grid) and (4 not in grid) and (7 not in grid): # turn left 
+                        return ["SPEED", "MOVE_LEFT"]
+                    if (3 not in grid) and (6 not in grid) and (9 not in grid): # turn right
+                        return ["SPEED", "MOVE_RIGHT"]
+                    if (1 not in grid) and (4 not in grid): # turn left 
+                        return ["SPEED", "MOVE_LEFT"]
+                    if (3 not in grid) and (6 not in grid): # turn right
+                        return ["SPEED", "MOVE_RIGHT"]
+                    if (4 not in grid) and (7 not in grid): # turn left 
+                        return ["MOVE_LEFT"]    
+                    if (6 not in grid) and (9 not in grid): # turn right
+                        return ["MOVE_RIGHT"]
+                                
+                    
+        if len(scene_info[self.player]) != 0:
+            self.car_pos = scene_info[self.player]
 
-                if (len_normal!=prelen_normal) or (len_hard!=prelen_hard):
-                    if abs(speed)!=7 or abs(speed)!=10:
-                        speed = pre_speed*(-1)
+        for car in scene_info["cars_info"]:
+            if car["id"]==self.player_no:
+                self.car_vel = car["velocity"]
 
-                    caculate_desti = True
+        if scene_info["status"] != "ALIVE":
+            return "RESET"
+        self.car_lane = self.car_pos[0] // 70
+        return check_grid()
 
-                if caculate_desti:
-                    cacu_speed = speed
-                    #print(speed)
-                    ini_y = now_pos[1]
-                    final_x = now_pos[0]
-                    fall_time = (400.0-ini_y)/7
-                    """print("ini_y = ", ini_y)
-                    print("now_pos[0] = ", now_pos[0])
-                    print("fall_time = ", fall_time)"""
-
-                    i = 0
-                    while i < fall_time:
-                        if (fall_time-i)<1:
-                            final_x = final_x + cacu_speed*(fall_time-i)
-                            break
-
-                        final_x = final_x + cacu_speed
-                        #print(final_x)
-
-                        if final_x<=0:
-                            final_x = 0
-                            cacu_speed = cacu_speed*(-1)
-                        elif final_x>=200-5:
-                            final_x = 200-5
-                            cacu_speed = cacu_speed*(-1)
-
-                        i = i+1
-
-                    #final_x = final_x + 2.5
-                    #print("最終預測：", final_x)
-                    caculate_desti = False
-
-                if abs(plat[0]+20-final_x)>5:
-                    if now_pos[0]>=pre_pos[0]: #球向右
-                        if plat[0]+20<final_x:
-                            comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
-                            plat_direct = 1
-                        elif plat[0]+20>final_x:
-                            comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
-                            plat_direct = 0
-                    else: #球向左
-                        if plat[0]+20<final_x:
-                            comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
-                            plat_direct = 1
-                        elif plat[0]+20>final_x:
-                            comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
-                            plat_direct = 0     
-
-                pre_speed = speed
-
-            else: #球上升
-                caculate_desti = True
-                #print("up")
-                if plat[0]+20<100:
-                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
-                    plat_direct = 1
-                elif plat[0]+20>100:
-                    comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
-                    plat_direct = 0
-                else: 
-                    comm.send_instruction(scene_info.frame, PlatformAction.NONE)
-        
-        prelen_normal = len_normal
-        prelen_hard = len_hard
+    def reset(self):
+        """
+        Reset the status
+        """
+        pass
